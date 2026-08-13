@@ -10,7 +10,16 @@ This document defines the development workflow.
 
 ## ChatGPT Project chat structure
 
-The ChatGPT Project is organized into four types of chats:
+The ChatGPT Project is organized into four types of chats. Project documents and chats have distinct roles.
+
+| Responsibility | Document / Source | Chat |
+|---|---|---|
+| Requirements | `PROJECT_SPEC.md` | Requirements & Architecture |
+| Architecture | `ARCHITECTURE.md` | Requirements & Architecture |
+| Development process | `DEVELOPMENT.md` | Development Workflow & Tools |
+| Build procedure | `CHAT_BUILD_TEMPLATE.md` | Used by every Build Chat |
+| Coaching | — | Project Coaching |
+| Implementation | GitHub repository | Build Chats |
 
 ### 1. Requirements & Architecture
 
