@@ -1,123 +1,64 @@
-# Personal Money Analyzer — Development Chat Template
+# Personal Money Analyzer — Build Chat Template
 
 ## Chat identity
 
 Chat:
-
 Scope:
-
 Primary phase:
 
----
+## Objective
 
-## 1. Objective
+Describe the specific feature or problem.
 
-Describe the specific feature or problem being worked on.
+Keep this chat within the defined scope.
 
-This chat must remain focused on this objective.
+## Before implementation
 
----
+Read:
+- `PROJECT_SPEC.md`
+- `docs/ARCHITECTURE.md`
+- `docs/DEVELOPMENT.md`
 
-## 2. Specification
+Then:
+1. identify relevant requirements;
+2. inspect the current repository;
+3. inspect relevant implementation and tests;
+4. identify dependencies and cross-chat impact;
+5. propose the implementation.
 
-Before implementation:
+**Do not modify the repository until the user explicitly approves the proposed implementation.**
 
-1. Read PROJECT_SPEC.md.
-2. Identify the relevant requirements.
-3. Inspect the current GitHub repository.
-4. Identify the existing implementation related to this task.
-5. Inspect relevant tests.
-
-Relevant PROJECT_SPEC.md sections:
-
-- 
-- 
-- 
-
----
-
-## 3. Scope
+## Scope
 
 ### In scope
-
 - 
 - 
 - 
 
 ### Out of scope
-
 - 
 - 
 - 
 
-Do not expand the scope without first explaining why it is necessary.
+Do not expand scope without explaining why it is necessary and obtaining approval when the expansion is material.
 
----
+## Implementation
 
-## 4. Repository inspection
-
-Before modifying code, determine:
-
-- relevant existing files;
-- existing interfaces;
-- existing services;
-- existing domain models;
-- database dependencies;
-- related tests;
-- dependencies on other project areas.
-
-Do not assume implementation exists without verifying it.
-
----
-
-## 5. Implementation approach
-
-Before significant changes, explain:
-
-### Existing architecture
-
-Describe the relevant current architecture.
-
-### Proposed change
-
-Describe the proposed implementation.
-
-### Why
-
-Explain why the change is required.
-
-### Specification compliance
-
-Explain which PROJECT_SPEC.md requirements the change addresses.
-
-### Cross-domain impact
-
-Identify whether other development areas are affected.
-
----
-
-## 6. Implementation rules
-
-While implementing:
-
+When approved:
+- follow the existing architecture;
 - preserve existing data;
-- avoid unrelated refactoring;
-- keep domain logic independent from UI;
-- avoid duplicated business logic;
-- use existing architecture where appropriate;
 - use safe monetary representations;
-- preserve explainability;
+- keep domain logic independent from UI;
+- avoid unrelated refactoring;
+- avoid duplicated business logic;
 - avoid unnecessary dependencies;
 - maintain backward compatibility where practical.
 
----
+## Testing
 
-## 7. Testing
+Add/update appropriate tests.
 
-Add or update appropriate tests.
-
-At minimum consider:
-
+Consider:
 - normal cases;
 - edge cases;
 - invalid input;
@@ -125,70 +66,35 @@ At minimum consider:
 - data integrity;
 - interaction with existing functionality.
 
-Use Vitest for domain/unit/integration tests.
+Use Vitest for unit/domain/integration tests and Playwright where E2E testing is appropriate.
 
-Use Playwright when end-to-end testing is appropriate.
+## Review
 
----
+Before completion verify:
+- relevant PROJECT_SPEC.md requirements;
+- ARCHITECTURE.md consistency;
+- Android/Linux compatibility where relevant;
+- data preservation;
+- privacy/local-first requirements;
+- tests;
+- scope.
 
-## 8. Review
-
-Before declaring the task complete, verify:
-
-### Requirements
-
-Does the implementation satisfy the relevant PROJECT_SPEC.md requirements?
-
-### Architecture
-
-Does it fit the existing architecture?
-
-### Data
-
-Does it preserve existing data?
-
-### Security/privacy
-
-Does it preserve local-first/privacy requirements?
-
-### Tests
-
-Are appropriate tests present and passing?
-
-### Scope
-
-Were unrelated changes avoided?
-
-### Maintainability
-
-Can another development chat understand and continue the work?
-
----
-
-## 9. Final report
-
-At completion provide:
+## Final report
 
 ### Changed
-
-List the important changes.
+Important changes.
 
 ### Files
-
-List files added, modified, or removed.
+Added/modified/removed files.
 
 ### Requirements
-
-List the PROJECT_SPEC.md requirements addressed.
+Relevant requirements addressed.
 
 ### Tests
-
-List tests added/run and their results.
+Tests run and results.
 
 ### Risks / limitations
-
-List anything incomplete or uncertain.
+Anything incomplete or uncertain.
 
 ### Follow-up
-
-List work that belongs to another chat or future phase.
+Work belonging to another chat or future phase.
