@@ -8,6 +8,65 @@ This document defines how the project is developed.
 `ARCHITECTURE.md` defines technical design.
 This document defines the development workflow.
 
+## ChatGPT Project chat structure
+
+The ChatGPT Project is organized into four types of chats:
+
+### 1. Requirements & Architecture
+
+Responsible for:
+- product requirements;
+- requirements clarification;
+- technical architecture;
+- architecture decisions;
+- maintaining PROJECT_SPEC.md and ARCHITECTURE.md.
+
+This chat does not implement application code. This chat will not touch development workflow. If user request questions or topic not strictly related to requirements or technical architecture suggest to move to the appropriate chat
+
+### 2. Development Workflow & Tools
+
+Responsible for:
+- development workflow;
+- build-chat structure;
+- Git workflow;
+- testing workflow;
+- AI tool usage;
+- ChatGPT/Copilot workflow;
+- maintaining DEVELOPMENT.md and CHAT_BUILD_TEMPLATE.md.
+
+This chat does not implement application code. This chat will not work on requirements nor technical architecture. If user ask questions related to requirements or technical architecture suggest to use the right chat
+
+### 3. Project Coaching
+
+The coaching chat provides guidance across the project.
+
+It helps the user:
+- evaluate project organization;
+- make or prepare architectural decisions;
+- choose between development tools;
+- decide how to structure chats;
+- resolve workflow issues;
+- review lessons learned during development.
+
+The coaching chat does not become the source of truth for requirements or implementation. Decisions must be reflected in the appropriate project document.
+
+### 4. Build Chats
+
+Build chats implement specific development phases.
+
+A build chat:
+- has a defined scope;
+- reads the relevant project documents;
+- inspects the current repository;
+- proposes an implementation before making changes;
+- implements only after explicit approval;
+- tests the implementation;
+- reviews the result against the project requirements and architecture.
+
+Build chats may be executed using either GitHub Copilot or ChatGPT. The GitHub repository is the implementation source of truth.
+
+The exact number and organization of build chats may evolve as the project develops.
+
 ## 2. Build chats
 
 Development is divided into focused build chats:
