@@ -80,8 +80,6 @@ The exact number and organization of build chats may evolve as the project devel
 
 Development is divided into focused build chats:
 
-00 — Requirements & Architecture
-
 01 — Data Model & Database
 
 02 — ING CSV Import
