@@ -13,15 +13,25 @@ This document defines the development workflow.
 Development is divided into focused build chats:
 
 00 — Requirements & Architecture
+
 01 — Data Model & Database
+
 02 — ING CSV Import
+
 03 — Duplicate Detection
+
 04 — Categorization Engine
+
 05 — Transaction UI
+
 06 — Categories & Rules UI
+
 07 — Dashboard
+
 08 — Export & Backup
+
 09 — Testing & Integration
+
 10 — Final Review
 
 Each build chat has a defined scope. Do not silently implement future phases or unrelated refactoring.
