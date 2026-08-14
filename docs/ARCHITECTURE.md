@@ -139,6 +139,18 @@ CSV
 
 The domain model must not depend directly on ING column names.
 
+The ING importer must normalize the following source-specific information:
+
+- `CAUSALE` must be mapped to a generic domain-level transaction type. The domain model must not use the ING-specific `CAUSALE` field name.
+- Merchant and counterparty information may need to be derived from the ING transaction description because the ING CSV does not provide separate merchant/counterparty columns.
+- The original transaction description must be preserved in the transaction.
+- ING opening and closing balance rows, such as `Saldo iniziale` and `Saldo finale`, are not financial transactions and must not be stored as ordinary transaction records. They may be retained as import/account balance metadata where useful for validation.
+- The ING CSV does not provide a dedicated currency column. For the ING import profile, the applicable currency should therefore be defined by the import profile/configuration rather than inferred from individual descriptions unless future requirements demonstrate a need for multi-currency handling.
+
+The importer is responsible for converting ING-specific representations into the normalized domain model before persistence.
+
+The normalized domain model must remain independent of ING column names and formatting.
+
 ## 11. Categorization
 
 Effective priority:
