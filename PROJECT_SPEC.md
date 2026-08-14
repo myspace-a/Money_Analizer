@@ -11,9 +11,22 @@ Build a personal finance application that imports ING Italy bank CSV exports, st
 
 The application is primarily for one user and is local-first. No cloud account or cloud database is required.
 
-## 2. Functional requirements
+## 2. MVP Scope and UX/UI Principles
 
-### 2.1 Incremental ING CSV import
+The priority is to deliver a functional and usable MVP that satisfies the agreed product requirements.
+
+UX/UI design is intentionally not fully defined at the MVP stage. UX/UI decisions should be made only when necessary to satisfy an MVP requirement, basic usability, or an architectural constraint.
+
+Features, enhancements and UX improvements that are not required for the MVP should be treated as backlog candidates rather than included in the MVP scope.
+
+The MVP should provide a clear and usable experience, but visual polish, advanced interaction patterns and UX optimization can be addressed after the MVP.
+
+The MVP should avoid speculative features and unnecessary architectural complexity introduced solely to support potential future requirements.
+
+## 3. Functional requirements
+
+### 3.1 Incremental ING CSV import
+
 The application must:
 - import ING Italy CSV files without replacing existing transactions;
 - preserve existing transactions unless explicitly updated/merged;
@@ -23,7 +36,8 @@ The application must:
 - handle dates, value dates where available, amounts, currency, descriptions, merchants/counterparties and transaction/debit/credit information where available;
 - keep the internal model independent from ING column names.
 
-### 2.2 Duplicate detection
+### 3.2 Duplicate detection
+
 Imported transactions must be checked against local transactions.
 
 The system must:
@@ -35,7 +49,8 @@ The system must:
 
 Supported outcomes include unique/new, exact duplicate and probable duplicate. The user must be able to keep existing, import new, keep both, or merge/ignore as appropriate.
 
-### 2.3 Categorization
+### 3.3 Categorization
+
 Every transaction must have a current category and categorization method.
 
 Methods:
@@ -51,15 +66,18 @@ Default rules must be separate from user rules and versionable. Users must be ab
 
 No external AI service is required.
 
-### 2.4 Learning
+### 3.4 Learning
+
 The application should learn from manual categorization using historical patterns such as exact/normalized merchant, similar descriptions, transaction characteristics and repeated categorization.
 
 Learning must be explainable and should produce suggestions when confidence is insufficient rather than irreversible decisions. Manual corrections must remain possible and may provide future learning data.
 
-### 2.5 Explainability
+### 3.5 Explainability
+
 The application must expose why a transaction was categorized, including method and relevant rule/evidence and confidence where applicable.
 
-### 2.6 Categories
+### 3.6 Categories
+
 Categories use stable internal IDs; names are not identifiers.
 
 The user must be able to:
@@ -70,7 +88,8 @@ The user must be able to:
 
 Historical transactions must remain consistent and category changes must not corrupt data.
 
-### 2.7 Transactions
+### 3.7 Transactions
+
 Provide a transaction list showing at least:
 - date;
 - description;
@@ -83,10 +102,12 @@ Provide a transaction list showing at least:
 
 Users must be able to edit category, search, filter, inspect categorization and duplicate status.
 
-### 2.8 Filters
+### 3.8 Filters
+
 Support filtering by month, date range, category, income/expense and search text. Search should include relevant description, merchant and counterparty fields. Filters should behave consistently in transaction and dashboard views.
 
-### 2.9 Dashboard
+### 3.9 Dashboard
+
 Provide:
 - spending by category;
 - monthly income, expenses and net cash flow;
@@ -96,20 +117,23 @@ Provide:
 
 Charts must respond to applicable filters.
 
-### 2.10 Export
+### 3.10 Export
+
 Support:
 - normalized CSV transaction export;
 - JSON application-data export.
 
 JSON should be capable of containing transactions, categories, custom rules, learning data, import configuration and application settings.
 
-### 2.11 Backup and restore
+### 3.11 Backup and restore
+
 Provide full local backup and restore including transactions, categories, rules, learning history, settings and import mappings. The backup must be restorable by the same application.
 
-### 2.12 Persistent local storage
+### 3.12 Persistent local storage
+
 Financial data must persist between sessions in a local database. No user account or cloud database is required.
 
-## 3. Privacy and financial-data safety
+## 4. Privacy and financial-data safety
 
 Financial data is sensitive.
 
@@ -127,7 +151,7 @@ Money must use integer minor units or another decimal-safe representation. Float
 
 The application must never silently delete or overwrite financial data.
 
-## 4. Non-functional requirements
+## 5. Non-functional requirements
 
 The application must run on Android and Linux.
 
@@ -139,7 +163,7 @@ The architecture must support:
 - explainable categorization;
 - maintainable separation between domain logic and UI.
 
-## 5. Development phases
+## 6. Development phases
 
 1. Foundation — repository/app setup, Tauri, SQLite, schema, domain models and persistence.
 2. ING Import — parser, mapping, normalization, validation, fingerprinting, duplicate detection/review and incremental import.
