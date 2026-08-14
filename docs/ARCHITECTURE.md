@@ -75,6 +75,7 @@ Initial conceptual fields:
 `amountMinorUnits`
 `currency`
 `direction`
+`transactionType`
 `description`
 `merchant`
 `counterparty`
