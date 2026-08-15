@@ -1,0 +1,206 @@
+# Money Map — Architecture
+
+**Status:** Revised architecture (supersedes previous ARCHITECTURE.md)
+**Companion document:** `PROJECT_SPEC.md` defines product requirements; this document defines how those requirements are built.
+
+---
+
+## 1. Overview
+
+Money Map is a local-first personal finance app for one user, targeting Android and Linux, built as an **installable Progressive Web App (PWA)**. It imports ING Italy CSV exports, categorizes spending, and provides dashboards, export, and backup — all without a server or cloud account. All data lives in a real SQLite database running in the browser via WebAssembly.
+
+This revision reflects three decisions made while discussing this document:
+
+1. The frontend is plain HTML/CSS/JS — no build step, no framework.
+2. The app runs as a PWA rather than a Tauri native shell — this removes Rust, a native build toolchain, and platform-specific packaging from day one, while keeping a real SQL database and a path to Tauri later if ever needed.
+3. The testing strategy is built around Playwright as the primary tool, with Vitest scoped narrowly, in response to real setup problems hit during Build Chat 01.
+
+Everything else — layering, money as integer minor units, stable UUIDs, the ING import boundary, categorization priority, and migrations — carries forward unchanged.
+
+---
+
+## 2. Technology Stack
+
+| Layer | Technology |
+|---|---|
+| Shell / packaging | Progressive Web App (installable via browser "Add to Home Screen" on Android and Linux) |
+| UI | Plain HTML, CSS, JavaScript — no framework, no bundler |
+| App logic (domain, repositories, services) | Plain JavaScript modules |
+| Persistence (production) | SQLite compiled to WebAssembly (`wa-sqlite` or `sql.js`), persisted via OPFS (Origin Private File System) |
+| Persistence (tests) | A plain Node-compatible SQLite library (e.g. `better-sqlite3` or Node's built-in `node:sqlite`) |
+| Unit/technical tests | Vitest (narrow scope — see §7) |
+| Acceptance tests | Playwright, run against a real browser |
+| CI | GitHub Actions (set up deliberately, not assumed — see §7.5) |
+
+There is no custom native code at all. The entire app — UI, domain logic, categorization, import parsing, persistence — is plain JavaScript running in the browser. This matches the "open one file, it works" simplicity of the earlier single-file prototype (`spesa-ing.html`), just organized into a few files.
+
+**Why not Tauri:** Tauri would give a more "native" installed-app feel and direct filesystem access, at the cost of a Rust toolchain, native build/signing steps per platform, and the setup friction already hit in Build Chat 01. For a single-user local app, that cost isn't currently justified. If a genuine need for native capability appears later (e.g. background sync, deeper filesystem integration), the adapter boundary in §4 is designed specifically so that move would replace one adapter, not the app.
+
+---
+
+## 3. Layering
+
+```
+┌─────────────────────────────────────────┐
+│  UI layer (index.html + feature .js)     │  transactions.js, dashboard.js, categories.js
+├─────────────────────────────────────────┤
+│  Application/Service layer               │  import, categorization, duplicate detection,
+│                                           │  dashboard aggregation, backup/restore
+├─────────────────────────────────────────┤
+│  Domain layer                            │  Transaction, Category, Rule, Money (pure JS,
+│                                           │  no I/O, no browser-specific dependency)
+├─────────────────────────────────────────┤
+│  Repository layer                        │  TransactionRepository, CategoryRepository, etc.
+│                                           │  — depends only on a small Database port
+├─────────────────────────────────────────┤
+│  Database adapters                       │  WasmSqliteAdapter (production) /
+│                                           │  NodeSqliteAdapter (tests)
+└─────────────────────────────────────────┘
+```
+
+**Rule:** domain and repository code may only depend on the `Database` port (§4). It must never import the WASM SQLite library directly. This is what makes domain/repository code runnable in plain Node/Vitest, and what would make a future native adapter a contained change.
+
+---
+
+## 4. Persistence Architecture
+
+### 4.1 The problem this solves
+
+In Build Chat 01, running any test required a full chain of setup — Node version, lockfile, Vitest, Rust, a native shell, a plugin, SQLite — before a single line of app logic could be checked. Choosing a browser-only stack removes the Rust/native portion of that chain entirely; the `Database` port removes the rest.
+
+### 4.2 The `Database` port
+
+A small interface (not a class hierarchy — just an object shape) that repository code depends on:
+
+```js
+// db-port.js (JSDoc typedef, not enforced by a compiler — this is plain JS)
+/**
+ * @typedef {Object} Database
+ * @property {(sql: string, params?: any[]) => Promise<any[]>} query
+ * @property {(sql: string, params?: any[]) => Promise<{lastInsertId?: number, rowsAffected: number}>} execute
+ * @property {(fn: (db: Database) => Promise<void>) => Promise<void>} transaction
+ */
+```
+
+Repositories (`TransactionRepository`, `CategoryRepository`, `RuleRepository`, …) take a `Database` in their constructor and only ever call `query`, `execute`, and `transaction`. They contain no browser-specific imports and no Node-only imports.
+
+### 4.3 Two adapters, one schema
+
+- **`WasmSqliteAdapter`** — wraps a WASM build of SQLite (`wa-sqlite` or `sql.js`), used in the actual running app (Android and Linux, both via browser/PWA). Storage is backed by OPFS, the browser's private persistent file storage, so data survives restarts like a normal local database file.
+- **`NodeSqliteAdapter`** — wraps a Node-native SQLite library, used only in Vitest tests.
+
+Both adapters run against the **same schema and the same migration SQL files** (§6). To keep them behaviorally equivalent:
+
+- Only standard SQLite dialect is used — no engine-specific extensions.
+- The migration runner (§6) and repository SQL are written once and executed unchanged by both adapters.
+- A small **adapter-parity test suite** runs the same repository test cases against both adapters where practical, so a query that passes under Node but behaves differently under the WASM build is caught early.
+
+### 4.4 Where each adapter is used
+
+| Context | Adapter |
+|---|---|
+| Vitest unit tests (money math, migrations, categorization, duplicate detection) | `NodeSqliteAdapter` |
+| Playwright acceptance tests, run against the real app in a browser | `WasmSqliteAdapter` |
+| Installed app (Android, Linux) | `WasmSqliteAdapter` |
+
+### 4.5 Backup, restore, and export
+
+Since the app has no direct filesystem access outside the browser sandbox:
+
+- **Export/Backup** produces a file (CSV or JSON per `PROJECT_SPEC.md` §3.10–3.11) via the browser's normal file-download mechanism.
+- **Restore** is done by the user picking a previously exported file via a file-input, which the app reads and applies through the same repository/domain layer used everywhere else — restore is not a special code path, just another writer.
+- This is slightly less convenient than direct filesystem access would be, but keeps the storage model simple and portable.
+
+---
+
+## 5. Frontend Architecture
+
+- **Entry point:** a single `index.html`.
+- **Feature modules:** plain ES modules loaded via `<script type="module">` — `transactions.js`, `dashboard.js`, `categories.js`, `import.js`, etc. Each owns one screen/feature area and calls into the service layer (§3).
+- **No build step.** No bundler, no JSX, no transpilation. What you edit is what runs — open `index.html` in a browser and see the change.
+- **No framework.** DOM updates are done directly (`document.querySelector`, template literals, or small hand-written render functions).
+- **PWA basics:** a `manifest.json` (name, icons, start URL) and a minimal service worker (caches static assets so the app opens instantly and works offline) are the only additions needed to make the app installable on Android and Linux.
+- **Shared UI utilities** (formatting money for display, date formatting, small DOM helpers) live in a `ui-utils.js` shared module.
+
+This mirrors the ease of the earlier single-file prototype (`spesa-ing.html`): the app is still "a page plus some scripts," just organized into a few files instead of one, so features don't collide as the app grows.
+
+---
+
+## 6. Data Model & Core Rules (carried forward)
+
+- **Money** is stored and computed as integer minor units (cents). No floating-point arithmetic for financial values, anywhere in the domain layer.
+- **Stable IDs:** transactions and categories use stable internal UUIDs; display names are never identifiers.
+- **ING import boundary:** the ING CSV column layout is normalized into the internal transaction model at the import boundary only. Nothing downstream of the importer knows about ING-specific column names.
+- **Categorization priority:** custom user rule → built-in default rule → historical learning → uncategorized. Default rules are versioned separately from user rules.
+- **Migrations:** schema changes ship as ordered, versioned SQL migration files, applied by a migration runner shared by both database adapters. Migrations must be additive/non-destructive by default; no migration may silently drop financial data.
+
+---
+
+## 6a. ING CSV Import Format (concrete)
+
+Based on a real ING Italy export, the raw format has several quirks the importer must handle explicitly, all confined to the import boundary (§6):
+
+- **Columns:** `DATA CONTABILE, DATA VALUTA, USCITE, ENTRATE, CAUSALE, DESCRIZIONE OPERAZIONE` — accounting date, value date, outflow amount, inflow amount, ING's transaction-type label, and a free-text description.
+- **Number format is Italian:** e.g. `-35,00` and `+5.316,83` — comma as the decimal separator, period as the thousands separator. Must be parsed explicitly (not `parseFloat`) and converted straight to integer minor units (§6) — never passed through a floating-point intermediate.
+- **Dates are `DD/MM/YYYY`.**
+- **Debit and credit are separate columns** (`USCITE` for outflows, `ENTRATE` for inflows), never both filled on the same row. The importer merges these into a single signed amount in the internal model.
+- **`CAUSALE` is ING's own transaction-type label** (e.g. "Pagamento Carta", "Bonifico In Uscita", "Accredito Stipendio/Pensione", "Prelievo Carta", "Addebito Diretto"). This is stored and used as one input to seed built-in default categorization rules — it is a strong, bank-provided signal, distinct from the free-text description.
+- **Merchant name is embedded in free text**, in `DESCRIZIONE OPERAZIONE`, typically after the word "presso" for card payments (e.g. "...presso FARMACIA SAN PANCRAZIO..."). The importer extracts a best-effort merchant string via pattern matching; the full original text is always preserved alongside the extracted value, since extraction is inherently imperfect and must remain inspectable/correctable (per the explainability requirement in `PROJECT_SPEC.md` §3.5).
+- **First and last rows are running-balance markers**, not transactions (`CAUSALE` blank, description "Saldo iniziale" / "Saldo finale"). The importer must recognize and exclude these rows rather than storing them as zero-category transactions.
+- **No bank-provided transaction ID exists.** This confirms the fingerprint used for duplicate detection (`PROJECT_SPEC.md` §3.2) must be derived from normalized (date, signed amount, causale, description) — there is no natural key to rely on instead.
+
+---
+
+## 7. Testing Strategy
+
+### 7.1 Guiding principle
+
+The testing strategy exists to protect financial and architectural integrity — correct money math, no data loss, no silent duplication — **without requiring day-to-day operation of a complex testing infrastructure.** Setup problems (Node versions, lockfiles, toolchains, CI config) must not block the ability to answer "does this feature actually work."
+
+### 7.2 Two tiers
+
+**Tier 1 — Playwright (primary, acceptance-level).**
+Playwright is the default way to verify a feature works, because it tests the app the way it's actually used: import a real ING CSV fixture, check that a €12.50 transaction appears correctly, that a duplicate is flagged, that the dashboard total updates. Because the app is a plain browser app, Playwright simply loads it like a user would — there's no native shell to build first. Most new features should get a Playwright test, not a Vitest test.
+
+**Tier 2 — Vitest (narrow, technical).**
+Vitest is scoped to a small, specific set of concerns where a fast, precise unit test is genuinely the better tool than an end-to-end test:
+
+- money math (integer minor-unit arithmetic, rounding, currency handling)
+- migrations (schema upgrades apply cleanly and preserve data)
+- categorization rule logic (priority resolution, rule matching)
+- duplicate-detection fingerprinting
+
+Vitest is **not mandatory as a general practice** — it's an implementation detail scoped to those four areas. A Build Chat is not expected to write Vitest tests for UI wiring, dashboard rendering, or general service-layer glue; those are covered by Playwright.
+
+### 7.3 SQLite integration testing
+
+- Vitest tests (Tier 2) run domain/repository logic against `NodeSqliteAdapter` — a real SQLite engine, just not the WASM build the app ships.
+- Playwright tests (Tier 1) run against the actual app in a real browser, which exercises the actual `WasmSqliteAdapter` and OPFS storage — this is what catches WASM/browser-specific integration issues.
+- The adapter-parity suite (§4.3) is the safety net between these two: it directly checks that the same repository behavior holds under both adapters, so passing Vitest tests are a meaningful signal about the real app, not just about a stand-in database.
+
+### 7.4 Android testing cadence
+
+Because the app is a PWA rather than a native build, there is no separate Android build/emulator chain to run. Routine development is verified with Playwright against a desktop browser. Actually installing and using the PWA on an Android phone (via "Add to Home Screen") should still be checked periodically — at the end of each development phase (per `PROJECT_SPEC.md` §6) and before any release intended for real daily use — mainly to confirm installability, offline behavior, and OPFS storage persistence on that platform, since these can behave slightly differently across browsers/devices.
+
+### 7.5 Where tests run, and who's responsible
+
+- **Local machine (primary):** Vitest and Playwright both run locally during development. This is the loop you rely on day-to-day — it must never depend on CI to tell you whether something works.
+- **CI (GitHub Actions):** runs the same Vitest + Playwright suites on push, as a second check — but CI is a deliberate setup task, not something to assume works. A Build Chat that wants CI enabled must actually add and verify the workflow file (including confirming it has permission to push it), not just reference GitHub Actions as if it already runs.
+- **Ownership:** you (the sole maintainer) own keeping both the local and CI test runs green. A Build Chat is responsible for leaving the environment in a state where `npm test` and `npx playwright test` succeed locally before considering a task done — CI, if present, is a bonus check, not a substitute.
+
+### 7.6 Minimum environment a Build Chat must assume or verify
+
+Before writing or modifying application logic, a Build Chat must confirm:
+
+- **Node version:** an LTS version is pinned in `package.json` (`engines.node`) and matches the Node actually installed (`node -v`). If they don't match, that mismatch must be resolved (or explicitly flagged to you) before proceeding — it must not be discovered only once tests are attempted.
+- **Lockfile policy:** `package-lock.json` is committed to the repo. `npm ci` must succeed from a clean checkout before any application code is written or changed in that session.
+- **No implicit assumption of a working CI pipeline.** Treat CI as "not set up" unless a Build Chat has verified it directly (e.g. seen a green run).
+
+---
+
+## 8. Open Questions / Backlog
+
+- Exact choice of WASM SQLite library (`wa-sqlite` vs. `sql.js`) — `wa-sqlite` supports OPFS directly for better performance with larger datasets; `sql.js` is simpler but typically needs manual persistence wiring. To be settled by the Build Chat implementing persistence.
+- Exact choice of Node-native SQLite library for `NodeSqliteAdapter` (`better-sqlite3` vs. Node's built-in `node:sqlite`) — to be settled based on what's stable in the pinned Node version.
+- Browser support baseline: OPFS is supported in current Chrome/Edge and Firefox; Safari support should be checked if Safari/iOS ever becomes a target (not currently in scope per `PROJECT_SPEC.md`, which targets Android and Linux).
+- CI workflow setup (GitHub Actions) is deferred to the Development Workflow & Tools chat.
