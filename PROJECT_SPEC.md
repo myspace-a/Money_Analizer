@@ -165,7 +165,8 @@ The architecture must support:
 
 ## 6. Development phases
 
-1. Foundation — repository/app setup, Tauri, SQLite, schema, domain models and persistence.
+1. Foundation — repository/app setup, local database, schema, domain models and persistence.
+
 2. ING Import — parser, mapping, normalization, validation, fingerprinting, duplicate detection/review and incremental import.
 3. Categorization — defaults, user rules, priority, metadata, learning, confidence and manual correction.
 4. Transaction UI — table, search, filters, sorting, details and categorization explanation.
