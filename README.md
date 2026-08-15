@@ -1,2 +1,2 @@
-# Money_Analizer
+# money_map
 Analyse and categorize bank account spending
