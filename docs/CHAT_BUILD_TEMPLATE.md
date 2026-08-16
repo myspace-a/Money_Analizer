@@ -16,11 +16,14 @@ State plainly which phase (per `PROJECT_SPEC.md` §6) or narrower task this Buil
 
 Before doing anything else, read from project knowledge:
 
+- The **project instructions** (chat roles, scope boundaries)
 - `PROJECT_SPEC.md` — product requirements
 - `docs/ARCHITECTURE.md` — technical design
 - `DEVELOPMENT.md` — process, environment, git, testing, CI, AI-tool responsibilities
 
 Do not proceed on memory or assumption from a previous session — re-read these each time, since they may have changed.
+
+If anything in these documents looks inconsistent with another (e.g. `PROJECT_SPEC.md` §6 phase wording conflicts with `ARCHITECTURE.md`, or `DEVELOPMENT.md` references something no longer in `ARCHITECTURE.md`), say so now, before proposing a plan. This is a lightweight sanity check while reading — not a full audit — and follows the same rule as §7: flag it for the **Requirements & Architecture chat** to resolve, don't silently pick an interpretation and proceed.
 
 ---
 
@@ -48,6 +51,8 @@ If work for this phase is starting fresh, create the branch per `DEVELOPMENT.md`
 ## 4. Propose an implementation plan — wait for approval
 
 Before writing any code, propose a concrete plan: what files will be created/changed, what the approach is, and any open questions or assumptions. Explicitly wait for approval before proceeding.
+
+The concrete file list for this phase is defined *here*, by this Build Chat — `ARCHITECTURE.md` §3 and §5 define the layering and file *pattern* (e.g. one feature module per screen, repositories depending only on the `Database` port), but the actual file names for a specific phase (e.g. "Phase 2 adds `import.js`, `csv-parser.js`, `fingerprint.js`") are proposed in this plan, not predefined elsewhere.
 
 - If the plan reveals a gap or conflict with `PROJECT_SPEC.md` or `ARCHITECTURE.md`, flag it now rather than quietly working around it (see §7 below and `DEVELOPMENT.md` §6).
 - If the plan is large, it's fine to break it into smaller approved chunks rather than one big upfront plan.
