@@ -19,7 +19,7 @@ Before doing anything else, read from project knowledge:
 - The **project instructions** (chat roles, scope boundaries)
 - `PROJECT_SPEC.md` — product requirements
 - `docs/ARCHITECTURE.md` — technical design
-- `docs/DEVELOPMENT.md` — process, environment, git, testing, CI, AI-tool responsibilities
+- `DEVELOPMENT.md` — process, environment, git, testing, CI, AI-tool responsibilities
 
 Do not proceed on memory or assumption from a previous session — re-read these each time, since they may have changed.
 
@@ -42,7 +42,7 @@ npm ci
 Confirm:
 - Current branch and working tree state.
 - What already exists in the repo relevant to this phase (don't re-propose work that's already done, and don't assume something exists that doesn't).
-- Node version matches `DEVELOPMENT.md` §1.1, and `npm ci` succeeds cleanly (`DEVELOPMENT.md` §1.2). If either fails, stop and flag it before proceeding — do not attempt to work around it silently.
+- Node version matches `DEVELOPMENT.md` §1.1 (Node 22.x), and `npm ci` succeeds cleanly (`DEVELOPMENT.md` §1.2). If either fails, stop and flag it before proceeding — do not attempt to work around it silently.
 
 If work for this phase is starting fresh, create the branch per `DEVELOPMENT.md` §2.1 (`build/<phase-number>-<short-phase-name>`) at this point.
 
