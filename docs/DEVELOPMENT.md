@@ -1,0 +1,230 @@
+# Money Map — Development Process
+
+**Companion documents:** `PROJECT_SPEC.md` (product requirements), `docs/ARCHITECTURE.md` (technical design). This document defines *how work actually happens day-to-day* — environment, git, testing, CI, and AI tool responsibilities. It does not define product scope or architecture; conflicts with those documents are flagged, not resolved, here (see §6).
+
+---
+
+## 0. Project Chat Structure
+
+The project is organized into four types of chats. Project documents and chats have distinct roles — each document is owned by exactly one chat.
+
+| Responsibility | Document / Source | Chat |
+|---|---|---|
+| Requirements | `PROJECT_SPEC.md` | Requirements & Architecture |
+| Architecture | `ARCHITECTURE.md` | Requirements & Architecture |
+| Development process | `DEVELOPMENT.md` | Development Workflow & Tools |
+| Build procedure | `CHAT_BUILD_TEMPLATE.md` | Used by every Build Chat |
+| Coaching | — | Project Coaching |
+| Implementation | GitHub repository | Build Chats |
+
+### 0.1 Requirements & Architecture
+
+Responsible for: product requirements, requirements clarification, technical architecture, architecture decisions, maintaining `PROJECT_SPEC.md` and `ARCHITECTURE.md`.
+
+This chat does not implement application code and does not touch development workflow. If a question isn't strictly about requirements or architecture, it gets redirected to the appropriate chat.
+
+### 0.2 Development Workflow & Tools
+
+Responsible for: development workflow, build-chat structure, Git workflow, testing workflow, AI tool usage, maintaining `DEVELOPMENT.md` and `CHAT_BUILD_TEMPLATE.md` — this is that chat.
+
+This chat does not implement application code and does not decide requirements or architecture. Questions about those get redirected to Requirements & Architecture.
+
+### 0.3 Project Coaching
+
+Provides guidance across the project: evaluating project organization, preparing (not making) architectural decisions, choosing between development tools, deciding how to structure chats, resolving workflow issues, reviewing lessons learned.
+
+The coaching chat is never the source of truth for requirements or implementation — any decision it helps shape must still be reflected in the appropriate project document by the chat that owns that document.
+
+### 0.4 Build Chats
+
+Implement specific development phases, following `CHAT_BUILD_TEMPLATE.md`: defined scope, reads the relevant project documents, inspects the current repository, proposes an implementation before making changes, implements only after explicit approval, tests, reviews the result against `PROJECT_SPEC.md` and `ARCHITECTURE.md`.
+
+The GitHub repository is the implementation source of truth — not any chat's conversation history. When a Build Chat resumes (in the same tool or a different one), it inspects the repository and re-reads the docs rather than relying on prior conversation memory.
+
+The exact number and organization of Build Chats may evolve as the project develops.
+
+---
+
+## 0a. Repository and Branches
+
+**Repository:** `github.com/myspace-a/money_map`
+
+| Branch | Contents | Status |
+|---|---|---|
+| `main` | The active default branch. Hosts `PROJECT_SPEC.md`, `ARCHITECTURE.md`, `DEVELOPMENT.md`, `CHAT_BUILD_TEMPLATE.md`, and — going forward — all real application code, built via the process in this document. | **Active** — this is where all new work happens. |
+| `ChatGPT` | An earlier, parallel exploration of the project documents produced via ChatGPT. Documentation only — **no application code**. | **Historical reference only.** Not merged into `main`, not a source for code. |
+| `claude-html` | An earlier single-file prototype (`spesa-ing.html`) built in a single Claude chat, before the current multi-chat / PWA architecture was adopted. | **Historical reference only.** Superseded by the architecture in `ARCHITECTURE.md` §1–2; not built on going forward. |
+
+**Rule for Build Chats:** all work targets `main` (via a feature branch off `main`, per §2.1) and never reads from or merges `ChatGPT` or `claude-html`. Those two branches exist purely as a paper trail of how the project got here — if a Build Chat wants to reference something from them (e.g. the original prototype's logic, or a wording choice from the ChatGPT docs), that's fine as inspiration, but nothing is pulled in automatically or assumed current.
+
+---
+
+## 1. Minimum Environment
+
+### 1.1 Pinned versions
+
+- **Node.js:** `20.x` (LTS). Pinned in `package.json` under `"engines": { "node": ">=20 <21" }`.
+- **Package manager:** `npm` (whatever ships with Node 20). No yarn, no pnpm — one tool, no ambiguity.
+- **Lockfile policy:** `package-lock.json` is committed to the repo and is the single source of truth for exact dependency versions. It is never `.gitignore`'d.
+
+> Why Node 20: it's a stable, widely-supported LTS release, and this project has no dependency that needs anything newer. If a future dependency requires a newer Node, that's a deliberate decision made in a Build Chat and reflected here — not a surprise.
+
+### 1.2 How a Build Chat verifies the environment before touching code
+
+This directly targets the Build Chat 01 failures (missing lockfile, Node v12 vs. assumed-modern Node). Before writing or modifying any application code, a Build Chat must run and report the result of:
+
+```bash
+node -v          # must be 20.x — if not, stop and flag it, don't proceed
+npm -v
+git status       # confirm working tree is clean, confirm current branch
+```
+
+Then:
+
+```bash
+npm ci
+```
+
+`npm ci` must succeed from a clean checkout. If `package-lock.json` is missing or `npm ci` fails, that is a blocking problem — it gets fixed (or explicitly flagged to you) *before* any application code is written, not discovered later when tests are attempted.
+
+This verification step is not optional and not skippable because "it worked last time." Every Build Chat does it fresh — see `CHAT_BUILD_TEMPLATE.md` §3.
+
+---
+
+## 2. Git Workflow
+
+### 2.1 Branching
+
+One branch per Build Chat, created from `main`:
+
+```
+build/<phase-number>-<short-phase-name>
+```
+
+Examples: `build/01-foundation`, `build/02-ing-import`, `build/03-categorization`. Phase numbers/names follow `PROJECT_SPEC.md` §6.
+
+If a Build Chat's scope is narrower than a full phase (e.g. a bugfix or a follow-up), use:
+
+```
+build/<phase-number>-<short-description>
+```
+
+Example: `build/02-fix-duplicate-fingerprint`.
+
+### 2.2 Commit messages
+
+[Conventional Commits](https://www.conventionalcommits.org/), kept simple:
+
+```
+<type>: <short summary>
+
+[optional longer description]
+```
+
+Types used in this project: `feat`, `fix`, `test`, `docs`, `refactor`, `chore`.
+
+Examples:
+- `feat: add ING CSV column mapping UI`
+- `fix: correct Italian decimal parsing for negative amounts`
+- `test: add Vitest coverage for duplicate fingerprinting`
+- `docs: update ARCHITECTURE.md with WASM adapter notes`
+
+Commit early and often within a Build Chat's branch — commits don't need to be squashed or perfect, since the branch is reviewed as a whole at merge time.
+
+### 2.3 Getting work into `main`
+
+1. Build Chat finishes its approved scope (see `CHAT_BUILD_TEMPLATE.md`) and confirms tests pass locally (§3).
+2. Push the branch and open a **Pull Request** into `main` on GitHub.
+3. **You** review and merge the PR yourself. No auto-merge, no AI-tool merge permissions.
+4. After merge, delete the branch.
+
+`main` is always the clean, working starting point for the next Build Chat — this mirrors how this chat already treats `main` as the baseline.
+
+---
+
+## 3. Testing Workflow
+
+This is the *day-to-day mechanics* of running tests. The testing *architecture* (why two tiers, what each tier covers, adapter parity) lives in `ARCHITECTURE.md` §7 — this section doesn't repeat that reasoning, only how to run it.
+
+### 3.1 Commands
+
+```bash
+npm test              # runs the Vitest suite (Tier 2 — narrow, see ARCHITECTURE.md §7.2)
+npx playwright test   # runs the Playwright suite (Tier 1 — primary, acceptance-level)
+```
+
+Both must succeed locally before a Build Chat's work is considered done. Neither is optional.
+
+### 3.2 Who runs what, and when
+
+- **During implementation:** the Build Chat (with Claude and/or Copilot, per §5) runs both suites repeatedly while building — this is the normal feedback loop, not a final gate.
+- **Before requesting merge:** the Build Chat runs both suites one final time from a clean state and reports the result (pass/fail, and what if anything is skipped/pending) as part of wrapping up.
+- **You:** spot-check by running the suites yourself before merging a PR, whenever you want that extra confidence — not required every time, but the option should always work without extra setup.
+
+### 3.3 What most new features need
+
+Per `ARCHITECTURE.md` §7.2, most new features get a **Playwright** test, not a Vitest test. Vitest is only for the four narrow areas listed there (money math, migrations, categorization rule logic, duplicate-detection fingerprinting). A Build Chat should default to Playwright unless the change clearly falls into one of those four areas.
+
+---
+
+## 4. CI (GitHub Actions)
+
+### 4.1 Current status: not set up yet
+
+Per `ARCHITECTURE.md` §7.5, CI is a **deliberate setup task**, never an assumption. As of this document, GitHub Actions is **not configured**. Treat it as absent until a workflow file exists in the repo and you have personally seen a green run.
+
+### 4.2 When it gets set up
+
+Deferred until after the **Foundation** phase (`PROJECT_SPEC.md` §6, phase 1) is complete and both test suites are reliably green locally. Setting up CI on top of a shaky local setup just reproduces the Build Chat 01 problem in a different place.
+
+### 4.3 Who owns it
+
+**You** own creating and pushing the GitHub Actions workflow file, or explicitly delegating that single task to a Build Chat *in this chat* (Development Workflow & Tools), with your direct involvement — not silently to an unattended AI tool. This directly addresses the Build Chat 01 failure where Copilot didn't have permission to push a CI workflow file: no AI tool should be assumed to have that permission. If a Build Chat is asked to help write the workflow file, its output is a *proposal* for you to review and push yourself, unless you've confirmed the tool actually has push permission for workflow files.
+
+### 4.4 What runs automatically vs. manually, once CI exists
+
+- **Automatic (on push / PR to `main`):** `npm ci`, `npm test`, `npx playwright test` — the same two suites run locally, as a second check.
+- **Manual only:** anything exploratory, anything touching real ING CSV fixtures with personal data, anything you haven't reviewed. CI never gains scope beyond "run the existing test suites" without a deliberate decision recorded here.
+
+---
+
+## 5. Division of Responsibility: Claude vs. GitHub Copilot
+
+Both tools may be used across Build Chats. Roles are kept explicit so neither tool assumes the other's job:
+
+| Responsibility | Claude | GitHub Copilot |
+| --- | --- | --- |
+| Reading `PROJECT_SPEC.md` / `ARCHITECTURE.md` / `DEVELOPMENT.md` and planning scope | ✅ Primary | — |
+| Proposing an implementation plan and waiting for your approval | ✅ Primary | — |
+| Writing application code (once a plan is approved) | ✅ Primary, in Build Chats | ✅ Inline completion/assistance while you or Claude write code |
+| Writing tests (Playwright/Vitest) | ✅ Primary | ✅ Inline assistance |
+| Setting up or modifying CI workflow files | ❌ Not unattended — see §4.3 | ❌ Not unattended — see §4.3 |
+| Git commands (branch, commit, push) | Can propose/run commands within an approved Build Chat scope, in a normal dev environment with your oversight | Not typically involved — Copilot is an inline coding assistant, not a workflow driver |
+| Reviewing code/tests against `PROJECT_SPEC.md` / `ARCHITECTURE.md` | ✅ Primary, before wrap-up | — |
+| Deciding product requirements or architecture | ❌ Never — belongs to Requirements & Architecture chat | ❌ Never |
+
+The general split: **Claude drives Build Chats end-to-end** (plan → implement → test → review), because it has this document, the spec, and the architecture as context. **Copilot is a lower-level assistant** used for inline code completion while working inside the repo — it does not own planning, CI, or merges. No tool sets up or pushes CI unattended (§4.3).
+
+---
+
+## 6. Flagging Conflicts Between Code and Docs
+
+A Build Chat may discover that the code needs to diverge from what `PROJECT_SPEC.md` or `ARCHITECTURE.md` currently says (e.g. an ING CSV quirk not yet documented, a data model detail that needs adjusting). When this happens:
+
+1. The Build Chat **does not** edit `PROJECT_SPEC.md` or `ARCHITECTURE.md` directly.
+2. The Build Chat **proposes** the fix — what's inconsistent, and a suggested resolution — as a clearly flagged note at wrap-up (see `CHAT_BUILD_TEMPLATE.md` §7).
+3. You take that note to the **Requirements & Architecture chat**, where the actual doc change is made.
+4. This chat (Development Workflow & Tools) only updates `DEVELOPMENT.md` and `CHAT_BUILD_TEMPLATE.md` — never `PROJECT_SPEC.md` or `ARCHITECTURE.md`.
+
+This keeps a single source of truth for product/architecture decisions and stops process docs from silently drifting out of sync with spec docs.
+
+---
+
+## 7. Out of Scope for This Document
+
+If you need help with any of the following, it belongs in a different chat, not here:
+
+- Product requirements or MVP scope → **Requirements & Architecture chat**
+- Technical/architecture decisions (data model, adapters, stack choices) → **Requirements & Architecture chat**
+- General project structure or coaching → **Project Coaching chat**
+- Actually writing application code → a **Build Chat**, following `CHAT_BUILD_TEMPLATE.md`
