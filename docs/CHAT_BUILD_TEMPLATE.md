@@ -19,7 +19,7 @@ Before doing anything else, read from project knowledge:
 - The **project instructions** (chat roles, scope boundaries)
 - `PROJECT_SPEC.md` — product requirements
 - `docs/ARCHITECTURE.md` — technical design
-- `DEVELOPMENT.md` — process, environment, git, testing, CI, AI-tool responsibilities
+- `docs/DEVELOPMENT.md` — process, environment, git, testing, CI, AI-tool responsibilities
 
 Do not proceed on memory or assumption from a previous session — re-read these each time, since they may have changed.
 
