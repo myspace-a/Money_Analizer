@@ -63,18 +63,18 @@ The exact number and organization of Build Chats may evolve as the project devel
 
 ### 1.1 Pinned versions
 
-- **Node.js:** `20.x` (LTS). Pinned in `package.json` under `"engines": { "node": ">=20 <21" }`.
-- **Package manager:** `npm` (whatever ships with Node 20). No yarn, no pnpm — one tool, no ambiguity.
+- **Node.js:** `22.x` (LTS). Pinned in `package.json` under `"engines": { "node": ">=22 <23" }`.
+- **Package manager:** `npm` (whatever ships with Node 22). No yarn, no pnpm — one tool, no ambiguity.
 - **Lockfile policy:** `package-lock.json` is committed to the repo and is the single source of truth for exact dependency versions. It is never `.gitignore`'d.
 
-> Why Node 20: it's a stable, widely-supported LTS release, and this project has no dependency that needs anything newer. If a future dependency requires a newer Node, that's a deliberate decision made in a Build Chat and reflected here — not a surprise.
+> Why Node 22 (updated from an earlier Node 20 pin): Node 20 reached end-of-life on April 30, 2026 and no longer receives security patches. Node 22 is the current Maintenance LTS release (supported into 2027) and was also what was actually reachable in the Build Chat 01 (Foundation) container after Node 20 install attempts hit network restrictions — so this pin reflects both a security requirement and a practical constraint, not just a preference. If a future dependency requires a newer Node, that's a deliberate decision made in a Build Chat and reflected here — not a surprise.
 
 ### 1.2 How a Build Chat verifies the environment before touching code
 
 This directly targets the Build Chat 01 failures (missing lockfile, Node v12 vs. assumed-modern Node). Before writing or modifying any application code, a Build Chat must run and report the result of:
 
 ```bash
-node -v          # must be 20.x — if not, stop and flag it, don't proceed
+node -v          # must be 22.x — if not, stop and flag it, don't proceed
 npm -v
 git status       # confirm working tree is clean, confirm current branch
 ```
