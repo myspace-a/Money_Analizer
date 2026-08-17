@@ -34,6 +34,8 @@ Everything else — layering, money as integer minor units, stable UUIDs, the IN
 
 There is no custom native code at all. The entire app — UI, domain logic, categorization, import parsing, persistence — is plain JavaScript running in the browser. This matches the "open one file, it works" simplicity of the earlier single-file prototype (`spesa-ing.html`), just organized into a few files.
 
+**Library loading:** third-party libraries (`wa-sqlite`, and Chart.js when the dashboard phase adds it) are loaded from a CDN at runtime rather than bundled/vendored into the repo — consistent with the no-build-step approach in §1. This is simpler day-to-day, but has an offline-installability consequence documented in §5 and §8.
+
 **Why not Tauri:** Tauri would give a more "native" installed-app feel and direct filesystem access, at the cost of a Rust toolchain, native build/signing steps per platform, and the setup friction already hit in Build Chat 01. For a single-user local app, that cost isn't currently justified. If a genuine need for native capability appears later (e.g. background sync, deeper filesystem integration), the adapter boundary in §4 is designed specifically so that move would replace one adapter, not the app.
 
 ---
@@ -103,7 +105,17 @@ Both adapters run against the **same schema and the same migration SQL files** (
 | Playwright acceptance tests, run against the real app in a browser | `WasmSqliteAdapter` |
 | Installed app (Android, Linux) | `WasmSqliteAdapter` |
 
-### 4.5 Backup, restore, and export
+### 4.5 Threading model: OPFS requires a Web Worker
+
+Fast, synchronous OPFS file access — the mode a real SQLite engine needs for reasonable performance — is only available **inside a Web Worker**, not on the browser's main thread. (The main thread only has a slower asynchronous OPFS API, which isn't suitable for how SQLite reads/writes.)
+
+This is a real constraint on the persistence architecture, not an implementation detail:
+
+- The actual SQLite engine runs inside a dedicated worker script, `db-worker.js` — never on the main thread.
+- `WasmSqliteAdapter` (as seen by repositories, per §4.2) does **not** call SQLite directly. It sends queries to `db-worker.js` via `postMessage` and receives results back the same way, then presents that to the rest of the app as the normal async `Database` interface (`query`/`execute`/`transaction`).
+- This is invisible to domain/repository code — the `Database` port abstraction absorbs it — but it does mean the adapter itself has real complexity (message correlation, worker lifecycle/startup) that a from-scratch implementer should expect going in.
+
+### 4.6 Backup, restore, and export
 
 Since the app has no direct filesystem access outside the browser sandbox:
 
@@ -120,6 +132,7 @@ Since the app has no direct filesystem access outside the browser sandbox:
 - **No build step.** No bundler, no JSX, no transpilation. What you edit is what runs — open `index.html` in a browser and see the change.
 - **No framework.** DOM updates are done directly (`document.querySelector`, template literals, or small hand-written render functions).
 - **PWA basics:** a `manifest.json` (name, icons, start URL) and a minimal service worker (caches static assets so the app opens instantly and works offline) are the only additions needed to make the app installable on Android and Linux.
+- **CDN-loaded libraries must be explicitly cached for offline use.** Because `wa-sqlite` and Chart.js load from a CDN at runtime (§2) rather than being part of the app's own files, the service worker's cache list must explicitly include those CDN URLs, not just the app's own HTML/CSS/JS. If it doesn't, a fully offline launch (or a launch after the CDN is unreachable) would fail to load the database engine itself — silently breaking the entire app, not just degrading a feature. This must be verified when the service worker is built, not assumed to work because other assets are cached.
 - **Shared UI utilities** (formatting money for display, date formatting, small DOM helpers) live in a `ui-utils.js` shared module.
 
 This mirrors the ease of the earlier single-file prototype (`spesa-ing.html`): the app is still "a page plus some scripts," just organized into a few files instead of one, so features don't collide as the app grows.
@@ -199,6 +212,8 @@ Before writing or modifying application logic, a Build Chat must confirm:
 ---
 
 ## 8. Open Questions / Backlog
+
+- **Service worker must cache CDN library URLs.** Flagged during Phase 1 (Foundation): when the service worker is built, it must explicitly cache the `wa-sqlite` (and Chart.js) CDN URLs, per §5 — not just app files — or offline installs will be missing the database engine.
 
 - Exact choice of WASM SQLite library (`wa-sqlite` vs. `sql.js`) — `wa-sqlite` supports OPFS directly for better performance with larger datasets; `sql.js` is simpler but typically needs manual persistence wiring. To be settled by the Build Chat implementing persistence.
 - Exact choice of Node-native SQLite library for `NodeSqliteAdapter` (`better-sqlite3` vs. Node's built-in `node:sqlite`) — to be settled based on what's stable in the pinned Node version.
