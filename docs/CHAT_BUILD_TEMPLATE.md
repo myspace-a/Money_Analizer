@@ -42,7 +42,7 @@ npm ci
 Confirm:
 - Current branch and working tree state.
 - What already exists in the repo relevant to this phase (don't re-propose work that's already done, and don't assume something exists that doesn't).
-- Node version matches `DEVELOPMENT.md` §1.1 (Node 22.x), and `npm ci` succeeds cleanly (`DEVELOPMENT.md` §1.2). If either fails, stop and flag it before proceeding — do not attempt to work around it silently.
+- Node version matches `DEVELOPMENT.md` §1.1 (Node 22.x), and `npm ci` succeeds cleanly (`DEVELOPMENT.md` §1.4). If either fails, stop and flag it before proceeding — do not attempt to work around it silently.
 
 If work for this phase is starting fresh, create the branch per `DEVELOPMENT.md` §2.1 (`build/<phase-number>-<short-phase-name>`) at this point.
 
@@ -73,12 +73,13 @@ Run:
 
 ```bash
 npm test              # Vitest — narrow scope, see ARCHITECTURE.md §7.2
-npx playwright test   # Playwright — primary, acceptance-level
 ```
+
+Per `DEVELOPMENT.md` §3.2, Playwright cannot run inside a Build Chat's container — this is a confirmed structural limit (no reachable browser), not something to keep retrying each session. Write the Playwright test(s) and the code they exercise, but do not attempt to execute them here.
 
 Per `DEVELOPMENT.md` §3.3, most new features should get a Playwright test. Vitest is only for the four narrow areas in `ARCHITECTURE.md` §7.2 (money math, migrations, categorization rule logic, duplicate-detection fingerprinting).
 
-Both suites must pass locally before this Build Chat's work is considered done. Report the actual pass/fail result — don't state tests pass without having run them in this session.
+Vitest must pass in this container before this Build Chat's work is considered done — report the actual pass/fail result, don't state it passes without having run it in this session. Playwright is reported as **written but not executed here**; the user runs it locally (per `DEVELOPMENT.md` §1.3) and confirms the result separately.
 
 ---
 
