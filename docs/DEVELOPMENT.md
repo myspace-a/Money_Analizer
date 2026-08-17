@@ -100,6 +100,8 @@ git config --global credential.helper store   # or 'cache' for a temporary, in-m
 
 If you'd rather use SSH keys instead of a token, that's an equally valid one-time alternative — either way, plan for this before your first `git push` on a new machine, not during it.
 
+**On using GitHub Codespaces instead of a local machine:** Codespaces is a reasonable way to get a real browser and normal internet access when you're away from your Linux machine (e.g. on Android), and the `nvm`/PAT setup above applies there too. However, per §3.2, Codespaces has shown storage-timing-related Playwright failures that didn't reproduce on local Linux — so it's a fallback for convenience, not a substitute for the authoritative local run.
+
 ### 1.4 How a Build Chat verifies the environment before touching code
 
 This directly targets the Build Chat 01 failures (missing lockfile, Node v12 vs. assumed-modern Node). Before writing or modifying any application code, a Build Chat must run and report the result of:
@@ -189,6 +191,8 @@ Both must succeed before a phase is considered done — Vitest in the Build Chat
 ### 3.2 Who runs what, and when
 
 **Structural constraint (confirmed in Build Chat 01):** Playwright (Tier 1) cannot run inside a Build Chat's sandboxed container. The container's network blocks downloading a browser (`cdn.playwright.dev` is not reachable), and the `apt` fallback (`chromium-browser`) is a snap stub that also doesn't work in that environment. This is not a one-off glitch to retry — **assume every Build Chat from now on that Tier 1 verification happens on your local machine, not in the container.** A Build Chat should write Playwright tests and the code they exercise, run Vitest (Tier 2) itself since that works fine in-container, and clearly mark Playwright results as "written, not executed here" rather than attempting workarounds each session.
+
+**GitHub Codespaces is not a reliable substitute for local Linux either — confirmed after Phase 1.** Codespaces has normal internet access (so it can install a browser, unlike the Build Chat container), but running the Phase 1 Playwright suite there produced 3 failures — persistence-across-reload and adapter-parity tests — that did **not** reproduce when the identical suite was run on the local Linux machine immediately after. The failures cluster around OPFS/storage timing, consistent with Codespaces' own container sandboxing affecting browser storage behavior rather than a real bug in the app. **Treat the local Linux machine as the authoritative Playwright result.** Codespaces can be used as a quick sanity check (e.g. confirming a test file runs at all) when Linux isn't reachable, but a Codespaces-only failure — especially involving persistence/storage/reload — should be re-verified on Linux before being reported to a Build Chat as a real bug.
 
 - **During implementation:** the Build Chat (with Claude and/or Copilot, per §5) runs Vitest repeatedly while building. Playwright tests are written but not run in-container — this is expected, not a gap to solve.
 - **Before requesting merge:** the Build Chat runs Vitest one final time from a clean state and reports the result. Playwright results are reported as "not executed in this container" rather than a pass/fail guess.
