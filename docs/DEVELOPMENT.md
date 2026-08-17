@@ -69,7 +69,38 @@ The exact number and organization of Build Chats may evolve as the project devel
 
 > Why Node 22 (updated from an earlier Node 20 pin): Node 20 reached end-of-life on April 30, 2026 and no longer receives security patches. Node 22 is the current Maintenance LTS release (supported into 2027) and was also what was actually reachable in the Build Chat 01 (Foundation) container after Node 20 install attempts hit network restrictions — so this pin reflects both a security requirement and a practical constraint, not just a preference. If a future dependency requires a newer Node, that's a deliberate decision made in a Build Chat and reflected here — not a surprise.
 
-### 1.2 How a Build Chat verifies the environment before touching code
+### 1.3 One-time local machine setup
+
+Confirmed painful in practice (Build Chat 01) — do these once per machine so they stop causing confusion mid-session:
+
+**Node version management.** A fresh machine's default Node may be far below the pin (e.g. a system Node 12 was found against a Node 22 pin), and reinstalling Node manually every time this happens is error-prone. Use [`nvm`](https://github.com/nvm-sh/nvm) instead:
+
+```bash
+# one-time nvm install, then:
+nvm install 22
+nvm use 22
+nvm alias default 22   # makes 22 the default for new terminal sessions
+```
+
+After this, `node -v` should show `22.x` in any new terminal without further action.
+
+**GitHub authentication for pushing over HTTPS.** GitHub no longer accepts a plain password for HTTPS git operations — pushing requires a [Personal Access Token](https://github.com/settings/tokens) (or SSH keys, as an alternative). One-time setup:
+
+```bash
+# when git push prompts for a password, use a PAT instead:
+# Settings → Developer settings → Personal access tokens → generate one with 'repo' scope
+# paste the token in place of your password when prompted
+```
+
+Git can also be configured to remember it (via a credential helper) so this isn't repeated on every push:
+
+```bash
+git config --global credential.helper store   # or 'cache' for a temporary, in-memory version
+```
+
+If you'd rather use SSH keys instead of a token, that's an equally valid one-time alternative — either way, plan for this before your first `git push` on a new machine, not during it.
+
+### 1.4 How a Build Chat verifies the environment before touching code
 
 This directly targets the Build Chat 01 failures (missing lockfile, Node v12 vs. assumed-modern Node). Before writing or modifying any application code, a Build Chat must run and report the result of:
 
@@ -153,13 +184,15 @@ npm test              # runs the Vitest suite (Tier 2 — narrow, see ARCHITECTU
 npx playwright test   # runs the Playwright suite (Tier 1 — primary, acceptance-level)
 ```
 
-Both must succeed locally before a Build Chat's work is considered done. Neither is optional.
+Both must succeed before a phase is considered done — Vitest in the Build Chat's container, Playwright on your local machine (see §3.2). Neither is optional.
 
 ### 3.2 Who runs what, and when
 
-- **During implementation:** the Build Chat (with Claude and/or Copilot, per §5) runs both suites repeatedly while building — this is the normal feedback loop, not a final gate.
-- **Before requesting merge:** the Build Chat runs both suites one final time from a clean state and reports the result (pass/fail, and what if anything is skipped/pending) as part of wrapping up.
-- **You:** spot-check by running the suites yourself before merging a PR, whenever you want that extra confidence — not required every time, but the option should always work without extra setup.
+**Structural constraint (confirmed in Build Chat 01):** Playwright (Tier 1) cannot run inside a Build Chat's sandboxed container. The container's network blocks downloading a browser (`cdn.playwright.dev` is not reachable), and the `apt` fallback (`chromium-browser`) is a snap stub that also doesn't work in that environment. This is not a one-off glitch to retry — **assume every Build Chat from now on that Tier 1 verification happens on your local machine, not in the container.** A Build Chat should write Playwright tests and the code they exercise, run Vitest (Tier 2) itself since that works fine in-container, and clearly mark Playwright results as "written, not executed here" rather than attempting workarounds each session.
+
+- **During implementation:** the Build Chat (with Claude and/or Copilot, per §5) runs Vitest repeatedly while building. Playwright tests are written but not run in-container — this is expected, not a gap to solve.
+- **Before requesting merge:** the Build Chat runs Vitest one final time from a clean state and reports the result. Playwright results are reported as "not executed in this container" rather than a pass/fail guess.
+- **You:** run `npx playwright test` yourself locally (per §1.3) before considering a phase done. This is not optional spot-checking for Playwright specifically — it's the only place Tier 1 actually gets verified, every phase.
 
 ### 3.3 What most new features need
 
