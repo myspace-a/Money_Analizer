@@ -211,7 +211,31 @@ Before writing or modifying application logic, a Build Chat must confirm:
 
 ---
 
-## 8. Open Questions / Backlog
+## 8. Hosting & Deployment
+
+### 8.1 GitHub Pages is a good fit
+
+Because the app has no build step and no server-side logic (§1, §5), it can be deployed as-is to **GitHub Pages** — static HTML/CSS/JS served over HTTPS, directly from the repository.
+
+This does not conflict with the local-first privacy requirement (`PROJECT_SPEC.md` §4): that requirement is about **user data** never leaving the device, not about the app's own code being private. GitHub Pages only serves files; it runs no server logic and collects nothing. HTTPS is required anyway for PWA installability and for OPFS (§4.5) to work at all, and GitHub Pages provides this by default.
+
+### 8.2 Origin stability — a real data-continuity risk
+
+OPFS storage (where the SQLite database file actually lives, §4.3–4.5) is scoped to the exact origin/URL the app was opened from. This has a direct consequence for deployment:
+
+- The URL the app is deployed and installed at (e.g. `https://<user>.github.io/<repo>/`) must be treated as effectively **permanent**.
+- Changing the repository name, moving off GitHub Pages, adding a custom domain, or restructuring the deployed path later all count as a **different origin** to the browser. The installed app would start from an empty database — existing data is not automatically carried over.
+- The only way to move data across an origin change is an explicit export/import through the app's own backup feature (§4.6, `PROJECT_SPEC.md` §3.11) — this is a manual step the user must remember to do *before* any such change, not something the architecture can do silently on their behalf.
+
+This risk should be re-stated as a concrete warning wherever deployment/hosting setup is actually documented (`DEVELOPMENT.md`), so it's seen at the moment someone is about to pick or change a hosting URL — not just here.
+
+### 8.3 Out of scope for this document
+
+Static hosting introduces no new architectural component — no server, no backend to design. What GitHub Pages configuration actually requires (repo settings, branch/folder to publish, custom domain setup if any) is a deployment/process concern, not an architecture decision, and belongs in `DEVELOPMENT.md` (owned by the Development Workflow & Tools chat).
+
+---
+
+## 9. Open Questions / Backlog
 
 - **Service worker must cache CDN library URLs.** Flagged during Phase 1 (Foundation): when the service worker is built, it must explicitly cache the `wa-sqlite` (and Chart.js) CDN URLs, per §5 — not just app files — or offline installs will be missing the database engine.
 
