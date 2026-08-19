@@ -13,16 +13,20 @@ import { WasmSqliteAdapter } from './persistence/wasmSqliteAdapter.js';
 import { runMigrations } from './persistence/migrationRunner.js';
 import { CategoryRepository } from './repositories/categoryRepository.js';
 import { TransactionRepository } from './repositories/transactionRepository.js';
+import { ImportSettingsRepository } from './repositories/importSettingsRepository.js';
 import { createCategory } from './domain/category.js';
 import { createTransaction } from './domain/transaction.js';
 import { formatMinorUnits } from './domain/money.js';
+import { initImportUI } from './import.js';
 
 const statusEl = document.getElementById('status');
 const listEl = document.getElementById('transaction-list');
+const importSectionEl = document.getElementById('import-section');
 
 let db;
 let categoryRepo;
 let transactionRepo;
+let importSettingsRepo;
 
 async function init() {
   db = new WasmSqliteAdapter();
@@ -30,8 +34,16 @@ async function init() {
   await runMigrations(db);
   categoryRepo = new CategoryRepository(db);
   transactionRepo = new TransactionRepository(db);
+  importSettingsRepo = new ImportSettingsRepository(db);
   statusEl.textContent = 'Database ready.';
   await renderTransactions();
+
+  initImportUI({
+    root: importSectionEl,
+    transactionRepo,
+    importSettingsRepo,
+    onImportCommitted: renderTransactions,
+  });
 }
 
 /**
