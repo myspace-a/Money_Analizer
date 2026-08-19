@@ -1,0 +1,7 @@
+DATA CONTABILE;DATA VALUTA;USCITE;ENTRATE;CAUSALE;DESCRIZIONE OPERAZIONE
+01/03/2026;01/03/2026;;;;Saldo iniziale
+02/03/2026;02/03/2026;-12,50;;Pagamento Carta;Pagamento Carta presso BAR CENTRALE
+05/03/2026;05/03/2026;-45,90;;Pagamento Carta;Pagamento Carta presso SUPERMERCATO GIALLO
+10/03/2026;10/03/2026;;+1.500,00;Accredito Stipendio/Pensione;Accredito stipendio marzo
+15/03/2026;15/03/2026;-20,00;;Prelievo Carta;Prelievo Carta ATM VIA ROMA
+31/03/2026;31/03/2026;;;;Saldo finale

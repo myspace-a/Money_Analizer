@@ -61,6 +61,25 @@ export class TransactionRepository {
   }
 
   /**
+   * Finds existing transactions sharing the same date and signed amount as a
+   * candidate, regardless of fingerprint. Used for probable-duplicate
+   * detection (PROJECT_SPEC.md §3.2): two transactions can be the same
+   * underlying payment even if minor text differences (e.g. re-exported
+   * description wording) produce a different fingerprint.
+   *
+   * @param {string} date
+   * @param {number} amountMinorUnits
+   * @returns {Promise<import('../domain/transaction.js').Transaction[]>}
+   */
+  async findByDateAndAmount(date, amountMinorUnits) {
+    const rows = await this.db.query(
+      'SELECT * FROM transactions WHERE date = ? AND amount_minor_units = ?;',
+      [date, amountMinorUnits]
+    );
+    return rows.map(rowToTransaction);
+  }
+
+  /**
    * @returns {Promise<import('../domain/transaction.js').Transaction[]>}
    */
   async findAll() {
