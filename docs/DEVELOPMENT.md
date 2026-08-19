@@ -257,7 +257,46 @@ This keeps a single source of truth for product/architecture decisions and stops
 
 ---
 
-## 7. Out of Scope for This Document
+## 7. Deployment (GitHub Pages)
+
+Per `ARCHITECTURE.md` §8, the app is deployed as a static site to **GitHub Pages** directly from this repository — no build step, no separate hosting account, no server to manage.
+
+### 7.1 One-time repo setup
+
+1. On GitHub: `Settings` → `Pages`.
+2. **Source:** "Deploy from a branch."
+3. **Branch:** `main`, folder **`/ (root)`** — the app's `index.html` lives at repo root, not inside `docs/` (that folder is reserved for the markdown project docs, not the deployed app).
+4. Add an empty `.nojekyll` file at repo root. GitHub Pages runs Jekyll processing by default, which can silently skip files/folders it doesn't expect (e.g. anything starting with `_`) — `.nojekyll` disables that, which matters here since this is a plain static site with no Jekyll involvement.
+
+Once enabled, the live URL is:
+
+```
+https://myspace-a.github.io/money_map/
+```
+
+### 7.2 ⚠️ This URL is effectively permanent — read before touching repo/hosting settings
+
+Restated from `ARCHITECTURE.md` §8.2, at the point where it actually matters: **OPFS storage (where the real database lives) is scoped to this exact URL.** Once real data has been entered into the app at this address, the following all count as a *different origin* to the browser — meaning the installed app would open to an empty database, not the existing one:
+
+- Renaming the `money_map` repository
+- Moving off GitHub Pages to another host
+- Adding a custom domain
+- Changing the published path/branch/folder
+
+**Before doing any of the above:** use the app's own export/backup feature (`PROJECT_SPEC.md` §3.11) first. There is no automatic migration — this is a manual step only you can remember to do, at the moment you decide to make such a change, not something to fix after the fact.
+
+### 7.3 Deployment is continuous, not a separate release step
+
+Because Pages deploys straight from `main`, **every PR merge into `main` (§2.3) goes live automatically** — there's no separate "publish" action. This means the same PR-review discipline in §2.3 is effectively also your release gate: don't merge to `main` until you're actually ready for that change to be live at the public URL.
+
+### 7.4 What this URL is useful for, day-to-day
+
+- The primary way to verify installability ("Add to Home Screen" on Android) and offline behavior on a real device, per `ARCHITECTURE.md` §7.4 — more reliable for this than a Codespaces forwarded port (§1.3), since the Pages URL is the actual stable origin the app will really run at, not a temporary preview URL.
+- Unlike a Codespaces preview, data entered here persists across visits (that's the point of OPFS) — so this URL will accumulate real local data over time, the same as the installed app would. Treat it accordingly, not as a disposable test environment.
+
+---
+
+## 8. Out of Scope for This Document
 
 If you need help with any of the following, it belongs in a different chat, not here:
 
