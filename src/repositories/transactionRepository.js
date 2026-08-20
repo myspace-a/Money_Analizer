@@ -18,8 +18,8 @@ export class TransactionRepository {
       `INSERT INTO transactions
          (id, date, value_date, amount_minor_units, currency, description, raw_description,
           merchant, transaction_type, category_id, categorization_method,
-          categorization_confidence, fingerprint, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+          categorization_confidence, categorization_evidence, fingerprint, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
         transaction.id,
         transaction.date,
@@ -33,6 +33,7 @@ export class TransactionRepository {
         transaction.categoryId,
         transaction.categorizationMethod,
         transaction.categorizationConfidence,
+        transaction.categorizationEvidence ? JSON.stringify(transaction.categorizationEvidence) : null,
         transaction.fingerprint,
         transaction.createdAt,
         transaction.updatedAt,
@@ -88,17 +89,39 @@ export class TransactionRepository {
   }
 
   /**
+   * Finds past transactions manually categorized (categorization_method =
+   * 'manual') at a given normalized merchant. Used by the historical
+   * learning tier (PROJECT_SPEC.md §3.4) — learning is deliberately scoped
+   * to manual corrections only, since that's the strongest, most trustworthy
+   * signal of what the user actually wants, rather than learning from the
+   * app's own prior guesses.
+   *
+   * @param {string} normalizedMerchant - already lowercased/trimmed by the caller
+   * @returns {Promise<import('../domain/transaction.js').Transaction[]>}
+   */
+  async findManualByNormalizedMerchant(normalizedMerchant) {
+    const rows = await this.db.query(
+      `SELECT * FROM transactions
+       WHERE categorization_method = 'manual' AND lower(trim(merchant)) = ?
+       ORDER BY updated_at DESC;`,
+      [normalizedMerchant]
+    );
+    return rows.map(rowToTransaction);
+  }
+
+  /**
    * @param {import('../domain/transaction.js').Transaction} transaction
    * @returns {Promise<void>}
    */
   async update(transaction) {
     await this.db.execute(
       `UPDATE transactions SET category_id = ?, categorization_method = ?,
-         categorization_confidence = ?, updated_at = ? WHERE id = ?;`,
+         categorization_confidence = ?, categorization_evidence = ?, updated_at = ? WHERE id = ?;`,
       [
         transaction.categoryId,
         transaction.categorizationMethod,
         transaction.categorizationConfidence,
+        transaction.categorizationEvidence ? JSON.stringify(transaction.categorizationEvidence) : null,
         transaction.updatedAt,
         transaction.id,
       ]
@@ -120,6 +143,7 @@ function rowToTransaction(row) {
     categoryId: row.category_id,
     categorizationMethod: row.categorization_method,
     categorizationConfidence: row.categorization_confidence,
+    categorizationEvidence: row.categorization_evidence ? JSON.parse(row.categorization_evidence) : null,
     fingerprint: row.fingerprint,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

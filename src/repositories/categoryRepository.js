@@ -32,6 +32,22 @@ export class CategoryRepository {
   }
 
   /**
+   * Looks up a category by exact name (case-insensitive). Used by default
+   * categorization seeding (Phase 3) to check whether a default category
+   * already exists before creating it, so seeding stays idempotent — name
+   * lookup only, since names are display labels, not identifiers
+   * (ARCHITECTURE.md §6).
+   * @param {string} name
+   * @returns {Promise<import('../domain/category.js').Category|null>}
+   */
+  async findByName(name) {
+    const rows = await this.db.query('SELECT * FROM categories WHERE lower(name) = lower(?);', [
+      name,
+    ]);
+    return rows.length > 0 ? rowToCategory(rows[0]) : null;
+  }
+
+  /**
    * @param {{includeInactive?: boolean}} [options]
    * @returns {Promise<import('../domain/category.js').Category[]>}
    */
