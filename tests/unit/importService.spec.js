@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { NodeSqliteAdapter } from '../../src/persistence/nodeSqliteAdapter.js';
 import { runMigrations } from '../../src/persistence/migrationRunner.js';
 import { TransactionRepository } from '../../src/repositories/transactionRepository.js';
+import { RuleRepository } from '../../src/repositories/ruleRepository.js';
 import { ING_DEFAULT_COLUMN_MAPPING } from '../../src/domain/importSettings.js';
 import { prepareImport, commitImport } from '../../src/import/importService.js';
 
@@ -17,6 +18,7 @@ const SAMPLE_CSV = [
 describe('import pipeline (prepareImport + commitImport)', () => {
   let db;
   let transactionRepo;
+  let ruleRepo;
 
   afterEach(() => {
     db?.close();
@@ -26,6 +28,11 @@ describe('import pipeline (prepareImport + commitImport)', () => {
     db = new NodeSqliteAdapter();
     await runMigrations(db);
     transactionRepo = new TransactionRepository(db);
+    // No rules are seeded in this suite (that's categorization's own
+    // concern, tested in categorizationEngine.spec.js / seedDefaults.spec.js)
+    // — an empty RuleRepository means everything falls through to
+    // 'uncategorized', which is what these Phase 2 assertions expect.
+    ruleRepo = new RuleRepository(db);
   }
 
   it('parses, classifies as new, and imports on first pass', async () => {
@@ -41,7 +48,7 @@ describe('import pipeline (prepareImport + commitImport)', () => {
     expect(candidates.every((c) => c.classification.status === 'new')).toBe(true);
 
     const decisions = Object.fromEntries(candidates.map((c) => [c.rowNumber, 'import']));
-    const result = await commitImport(candidates, decisions, transactionRepo);
+    const result = await commitImport(candidates, decisions, transactionRepo, ruleRepo);
 
     expect(result.importedCount).toBe(3);
     expect(result.skippedCount).toBe(0);
@@ -65,7 +72,7 @@ describe('import pipeline (prepareImport + commitImport)', () => {
     const firstDecisions = Object.fromEntries(
       first.candidates.map((c) => [c.rowNumber, 'import'])
     );
-    await commitImport(first.candidates, firstDecisions, transactionRepo);
+    await commitImport(first.candidates, firstDecisions, transactionRepo, ruleRepo);
 
     const second = await prepareImport(SAMPLE_CSV, ING_DEFAULT_COLUMN_MAPPING, transactionRepo);
     expect(second.candidates).toHaveLength(3);
@@ -75,7 +82,7 @@ describe('import pipeline (prepareImport + commitImport)', () => {
 
     // Leave all decisions at their default (skip, for duplicates) —
     // nothing should be inserted a second time.
-    const result = await commitImport(second.candidates, {}, transactionRepo);
+    const result = await commitImport(second.candidates, {}, transactionRepo, ruleRepo);
     expect(result.importedCount).toBe(0);
     expect(result.skippedCount).toBe(3);
 
@@ -89,12 +96,12 @@ describe('import pipeline (prepareImport + commitImport)', () => {
     const firstDecisions = Object.fromEntries(
       first.candidates.map((c) => [c.rowNumber, 'import'])
     );
-    await commitImport(first.candidates, firstDecisions, transactionRepo);
+    await commitImport(first.candidates, firstDecisions, transactionRepo, ruleRepo);
 
     const second = await prepareImport(SAMPLE_CSV, ING_DEFAULT_COLUMN_MAPPING, transactionRepo);
     // Force-import the first candidate despite it being an exact duplicate.
     const decisions = { [second.candidates[0].rowNumber]: 'import' };
-    const result = await commitImport(second.candidates, decisions, transactionRepo);
+    const result = await commitImport(second.candidates, decisions, transactionRepo, ruleRepo);
 
     expect(result.importedCount).toBe(1);
     expect(result.skippedCount).toBe(2);
