@@ -28,10 +28,11 @@ const STATUS_LABELS = {
  *   root: HTMLElement,
  *   transactionRepo: import('./repositories/transactionRepository.js').TransactionRepository,
  *   importSettingsRepo: import('./repositories/importSettingsRepository.js').ImportSettingsRepository,
+ *   ruleRepo: import('./repositories/ruleRepository.js').RuleRepository,
  *   onImportCommitted?: () => void,
  * }} options
  */
-export function initImportUI({ root, transactionRepo, importSettingsRepo, onImportCommitted }) {
+export function initImportUI({ root, transactionRepo, importSettingsRepo, ruleRepo, onImportCommitted }) {
   const fileInput = root.querySelector('#import-file-input');
   const previewBtn = root.querySelector('#import-preview-btn');
   const confirmBtn = root.querySelector('#import-confirm-btn');
@@ -80,7 +81,7 @@ export function initImportUI({ root, transactionRepo, importSettingsRepo, onImpo
 
   confirmBtn.addEventListener('click', async () => {
     const decisions = readDecisions(reviewList, currentCandidates);
-    const result = await commitImport(currentCandidates, decisions, transactionRepo);
+    const result = await commitImport(currentCandidates, decisions, transactionRepo, ruleRepo);
     summaryEl.textContent = `Imported ${result.importedCount} transaction(s); skipped ${result.skippedCount}.`;
     confirmBtn.disabled = true;
     reviewList.innerHTML = '';
