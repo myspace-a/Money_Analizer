@@ -30,6 +30,10 @@ const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
  * @property {string|null} categoryId
  * @property {'default'|'rule'|'learned'|'manual'|'uncategorized'} categorizationMethod
  * @property {number|null} categorizationConfidence - 0..1, when applicable
+ * @property {Object|null} categorizationEvidence - why this method/category was
+ *   chosen (PROJECT_SPEC.md §3.5) — e.g. which rule matched, or which prior
+ *   transactions a learned suggestion was based on. Shape varies by method;
+ *   populated by the categorization engine (Phase 3), not by this module.
  * @property {string} fingerprint - dedup fingerprint, derived from normalized
  *   (date, signed amount, transactionType, description) per ARCHITECTURE.md
  *   §6a; computed at the import boundary (Phase 2), not by this module
@@ -55,6 +59,7 @@ const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
  *   categoryId?: string|null,
  *   categorizationMethod?: string,
  *   categorizationConfidence?: number|null,
+ *   categorizationEvidence?: Object|null,
  *   fingerprint: string,
  * }} input
  * @returns {Transaction}
@@ -71,6 +76,7 @@ export function createTransaction({
   categoryId = null,
   categorizationMethod = 'uncategorized',
   categorizationConfidence = null,
+  categorizationEvidence = null,
   fingerprint,
 }) {
   if (!ISO_DATE_PATTERN.test(date)) {
@@ -108,6 +114,7 @@ export function createTransaction({
     categoryId,
     categorizationMethod,
     categorizationConfidence,
+    categorizationEvidence,
     fingerprint,
     createdAt: now,
     updatedAt: now,

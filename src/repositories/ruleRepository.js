@@ -59,6 +59,31 @@ export class RuleRepository {
   }
 
   /**
+   * All rules, both sources, for display (e.g. the rules management screen).
+   * Unlike findAllOrderedByPriority(), this is not meant for categorization
+   * resolution — just a stable listing order for a UI.
+   * @returns {Promise<import('../domain/rule.js').Rule[]>}
+   */
+  async findAll() {
+    const rows = await this.db.query(
+      `SELECT * FROM rules ORDER BY CASE source WHEN 'user' THEN 0 ELSE 1 END, priority DESC, created_at;`
+    );
+    return rows.map(rowToRule);
+  }
+
+  /**
+   * Rules from a given source ('user' or 'default'). Used by default
+   * categorization seeding (Phase 3) to check idempotently whether default
+   * rules already exist before inserting them again.
+   * @param {'user'|'default'} source
+   * @returns {Promise<import('../domain/rule.js').Rule[]>}
+   */
+  async findBySource(source) {
+    const rows = await this.db.query('SELECT * FROM rules WHERE source = ?;', [source]);
+    return rows.map(rowToRule);
+  }
+
+  /**
    * @param {import('../domain/rule.js').Rule} rule
    * @returns {Promise<void>}
    */

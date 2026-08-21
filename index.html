@@ -29,6 +29,34 @@
     <p id="import-summary"></p>
   </section>
 
+  <section id="rules-section">
+    <h2>Categorization Rules</h2>
+
+    <form id="rule-form">
+      <label>
+        Category
+        <select id="rule-category"></select>
+      </label>
+      <label>
+        Match type
+        <select id="rule-match-type"></select>
+      </label>
+      <label>
+        Match value
+        <input type="text" id="rule-match-value" required />
+      </label>
+      <label>
+        Priority
+        <input type="number" id="rule-priority" value="0" />
+      </label>
+      <button type="submit" id="rule-submit-btn">Add rule</button>
+      <button type="button" id="rule-cancel-edit-btn" hidden>Cancel</button>
+    </form>
+    <p id="rule-error"></p>
+
+    <div id="rules-list"></div>
+  </section>
+
   <script type="module" src="./src/main.js"></script>
 </body>
 </html>

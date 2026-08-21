@@ -13,7 +13,7 @@ describe('migrationRunner', () => {
     db = new NodeSqliteAdapter();
     const result = await runMigrations(db);
 
-    expect(result.applied).toEqual([1, 2]);
+    expect(result.applied).toEqual([1, 2, 3]);
     expect(result.skipped).toEqual([]);
 
     const tables = await db.query(
@@ -29,6 +29,11 @@ describe('migrationRunner', () => {
         'schema_migrations',
       ])
     );
+
+    const columns = await db.query('PRAGMA table_info(transactions);');
+    expect(columns.map((c) => c.name)).toEqual(
+      expect.arrayContaining(['categorization_evidence'])
+    );
   });
 
   it('is idempotent — running twice does not reapply or error', async () => {
@@ -37,7 +42,7 @@ describe('migrationRunner', () => {
     const second = await runMigrations(db);
 
     expect(second.applied).toEqual([]);
-    expect(second.skipped).toEqual([1, 2]);
+    expect(second.skipped).toEqual([1, 2, 3]);
   });
 
   it('records applied migrations in schema_migrations', async () => {
@@ -45,8 +50,8 @@ describe('migrationRunner', () => {
     await runMigrations(db);
 
     const rows = await db.query('SELECT version, description FROM schema_migrations ORDER BY version;');
-    expect(rows).toHaveLength(2);
-    expect(rows.map((r) => r.version)).toEqual([1, 2]);
+    expect(rows).toHaveLength(3);
+    expect(rows.map((r) => r.version)).toEqual([1, 2, 3]);
   });
 
   it('preserves existing data when run again (non-destructive)', async () => {

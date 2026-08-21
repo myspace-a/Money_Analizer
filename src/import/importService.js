@@ -21,6 +21,7 @@ import { extractMerchant } from './merchantExtractor.js';
 import { computeFingerprint } from './fingerprint.js';
 import { classifyCandidate } from './duplicateDetector.js';
 import { createTransaction } from '../domain/transaction.js';
+import { categorizeTransaction } from '../categorization/categorizationEngine.js';
 
 /**
  * @typedef {Object} ImportCandidate
@@ -80,12 +81,18 @@ export async function prepareImport(csvText, columnMapping, transactionRepo) {
  * Inserts the candidates the caller decided to import. Candidates not
  * present in `decisions` (or explicitly marked 'skip') are not inserted.
  *
+ * Each inserted transaction is run through the categorization engine
+ * (Phase 3, PROJECT_SPEC.md §3.3) before being saved, so imported
+ * transactions land already categorized (by a user rule, a default rule, or
+ * historical learning) instead of always starting as 'uncategorized'.
+ *
  * @param {ImportCandidate[]} candidates
  * @param {Record<number, 'import'|'skip'>} decisions - keyed by candidate.rowNumber
  * @param {import('../repositories/transactionRepository.js').TransactionRepository} transactionRepo
+ * @param {import('../repositories/ruleRepository.js').RuleRepository} ruleRepo
  * @returns {Promise<{ importedCount: number, skippedCount: number, imported: import('../domain/transaction.js').Transaction[] }>}
  */
-export async function commitImport(candidates, decisions, transactionRepo) {
+export async function commitImport(candidates, decisions, transactionRepo, ruleRepo) {
   const imported = [];
   let skippedCount = 0;
 
@@ -96,15 +103,28 @@ export async function commitImport(candidates, decisions, transactionRepo) {
       continue;
     }
 
+    const description = normalizeDisplayDescription(candidate.parsedRow.rawDescription);
+    const rawDescription = candidate.parsedRow.rawDescription;
+    const transactionType = candidate.parsedRow.transactionType || null;
+
+    const categorization = await categorizeTransaction(
+      { description, rawDescription, merchant: candidate.merchant, transactionType },
+      { ruleRepo, transactionRepo }
+    );
+
     const transaction = createTransaction({
       date: candidate.parsedRow.date,
       valueDate: candidate.parsedRow.valueDate,
       amountMinorUnits: candidate.parsedRow.amountMinorUnits,
-      description: normalizeDisplayDescription(candidate.parsedRow.rawDescription),
-      rawDescription: candidate.parsedRow.rawDescription,
+      description,
+      rawDescription,
       merchant: candidate.merchant,
-      transactionType: candidate.parsedRow.transactionType || null,
+      transactionType,
       fingerprint: candidate.fingerprint,
+      categoryId: categorization.categoryId,
+      categorizationMethod: categorization.categorizationMethod,
+      categorizationConfidence: categorization.categorizationConfidence,
+      categorizationEvidence: categorization.categorizationEvidence,
     });
     await transactionRepo.insert(transaction);
     imported.push(transaction);
