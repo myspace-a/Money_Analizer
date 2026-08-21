@@ -143,10 +143,54 @@ async function correctTransactionCategory(transactionId, categoryId) {
   return updated;
 }
 
+/**
+ * Dev-only utility exposed on window.MoneyMapApp — NOT part of the app's UI
+ * (PROJECT_SPEC.md §4 requires the app itself to never silently delete
+ * financial data; this is a deliberate, explicit console action for local
+ * testing, not a feature the app exposes to a user).
+ *
+ * Closes the WasmSqliteAdapter (terminates the worker, which releases the
+ * OPFS SyncAccessHandle lock db-worker.js holds on money-map.sqlite3 while
+ * the app is running — that lock is exactly what caused the earlier
+ * "DOMException: No modification allowed" when trying to delete the file
+ * out from under a running page), deletes every file in the app's own OPFS
+ * directory (`money-map-opfs` — never touches other origins/paths, e.g.
+ * sibling GitHub Pages projects sharing this origin), then reloads.
+ *
+ * Usage from the browser console:
+ *   window.MoneyMapApp.resetDatabase({ confirm: true })
+ * The `confirm: true` is required on purpose, so this can't be triggered
+ * by an accidental or pasted call with no arguments.
+ *
+ * @param {{ confirm: boolean }} options
+ * @returns {Promise<void>}
+ */
+async function resetDatabase({ confirm } = {}) {
+  if (confirm !== true) {
+    throw new Error(
+      'resetDatabase requires explicit confirmation: window.MoneyMapApp.resetDatabase({ confirm: true })'
+    );
+  }
+
+  console.warn('Resetting Money Map local database — this deletes all local transactions, categories, and rules.');
+
+  db.close();
+
+  const root = await navigator.storage.getDirectory();
+  const opfsDir = await root.getDirectoryHandle('money-map-opfs');
+  for await (const name of opfsDir.keys()) {
+    await opfsDir.removeEntry(name);
+  }
+
+  console.warn('Database files removed. Reloading…');
+  location.reload();
+}
+
 window.MoneyMapApp = {
   insertSampleTransaction,
   listTransactions,
   correctTransactionCategory,
+  resetDatabase,
 };
 
 init().catch((err) => {
