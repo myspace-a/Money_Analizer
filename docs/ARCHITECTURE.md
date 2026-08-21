@@ -115,7 +115,21 @@ This is a real constraint on the persistence architecture, not an implementation
 - `WasmSqliteAdapter` (as seen by repositories, per §4.2) does **not** call SQLite directly. It sends queries to `db-worker.js` via `postMessage` and receives results back the same way, then presents that to the rest of the app as the normal async `Database` interface (`query`/`execute`/`transaction`).
 - This is invisible to domain/repository code — the `Database` port abstraction absorbs it — but it does mean the adapter itself has real complexity (message correlation, worker lifecycle/startup) that a from-scratch implementer should expect going in.
 
-### 4.6 Backup, restore, and export
+### 4.6 Local reset (development utility)
+
+A running app holds an open OPFS `SyncAccessHandle` on the database file inside `db-worker.js` (§4.5). Because of that lock, the file can't simply be deleted out from under a live page — browser DevTools "Clear storage" tooling is inconsistent here (and Firefox's Storage tab doesn't expose OPFS at all currently), so there is no reliable way to reset local test data from outside the app.
+
+To make this workable during development, `main.js` exposes a console-only utility:
+
+```
+window.MoneyMapApp.resetDatabase({ confirm: true })
+```
+
+It closes the adapter first (releasing the OPFS lock), deletes only the app's own OPFS directory, then reloads. The `{ confirm: true }` argument is required and has no default — this is deliberate, so it can't be triggered accidentally by pasting a snippet or from a stray call.
+
+This is a **developer console utility, not a UI feature** — there is no button or menu entry for it, nothing a normal user would stumble into while using the app. That's a direct consequence of `PROJECT_SPEC.md` §4 ("the application must never silently delete or overwrite financial data"): destructive resets exist only as a deliberate, hard-to-trigger developer action, never as an in-app affordance.
+
+### 4.7 Backup, restore, and export
 
 Since the app has no direct filesystem access outside the browser sandbox:
 
@@ -225,7 +239,9 @@ OPFS storage (where the SQLite database file actually lives, §4.3–4.5) is sco
 
 - The URL the app is deployed and installed at (e.g. `https://<user>.github.io/<repo>/`) must be treated as effectively **permanent**.
 - Changing the repository name, moving off GitHub Pages, adding a custom domain, or restructuring the deployed path later all count as a **different origin** to the browser. The installed app would start from an empty database — existing data is not automatically carried over.
-- The only way to move data across an origin change is an explicit export/import through the app's own backup feature (§4.6, `PROJECT_SPEC.md` §3.11) — this is a manual step the user must remember to do *before* any such change, not something the architecture can do silently on their behalf.
+- The only way to move data across an origin change is an explicit export/import through the app's own backup feature (§4.7, `PROJECT_SPEC.md` §3.11) — this is a manual step the user must remember to do *before* any such change, not something the architecture can do silently on their behalf.
+
+**The origin is also shared across every app hosted under it, not just Money Map's own history.** `myspace-a.github.io` hosts multiple independent projects as separate paths (e.g. `Acqua`, `Digital_Library`) on the same GitHub Pages account — and since OPFS storage is scoped to the *origin* (`myspace-a.github.io`), not the path, all of those projects share one browser storage bucket. Concretely: a blanket "Clear site data" action in browser DevTools clears storage for the whole origin, wiping every project's data at once, not just Money Map's. This is exactly why the reset utility in §4.6 deliberately deletes only its own `money-map-opfs` directory rather than clearing storage wholesale — a general-purpose "clear everything" reset is not safe to offer at all on a shared origin like this one.
 
 This risk should be re-stated as a concrete warning wherever deployment/hosting setup is actually documented (`DEVELOPMENT.md`), so it's seen at the moment someone is about to pick or change a hosting URL — not just here.
 
