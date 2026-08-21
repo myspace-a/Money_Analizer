@@ -133,6 +133,19 @@ Provide full local backup and restore including transactions, categories, rules,
 
 Financial data must persist between sessions in a local database. No user account or cloud database is required.
 
+### 3.13 User-initiated data reset
+
+The application must provide a way for the user to permanently delete all locally stored data (transactions, categories, rules, learning history, settings, import mappings), for cases such as starting over or clearing test data.
+
+This capability must:
+
+- be disabled/hidden by default — it must not appear in the normal UI until the user has explicitly activated it (e.g. via a setting);
+- once activated, still require an explicit confirmation step before any data is deleted — a single click/tap must never be sufficient;
+- only ever delete this application's own data, never data belonging to any other application;
+- never run automatically, on error, or as a side effect of any other action.
+
+This directly extends the safety principle in §4 ("must never silently delete or overwrite financial data") to a feature that is, by design, destructive — the safeguard is the opt-in plus confirmation, not the absence of the feature.
+
 ## 4. Privacy and financial-data safety
 
 Financial data is sensitive.
@@ -172,7 +185,7 @@ The architecture must support:
 4. Transaction UI — table, search, filters, sorting, details and categorization explanation.
 5. Category Management — create, rename, split, merge, deactivate and reassignment.
 6. Dashboard — category charts, trends, income/expense, merchants and filters.
-7. Export/Backup — CSV, JSON, backup and restore.
-8. Testing/Hardening — unit, integration, E2E, real ING validation, edge cases, backup/restore, performance and UX refinement.
+7. Export/Backup — CSV, JSON, backup and restore, and user-activated data reset (§3.13).
+9. Testing/Hardening — unit, integration, E2E, real ING validation, edge cases, backup/restore, performance and UX refinement.
 
 This document defines product requirements. Technical implementation decisions belong in `docs/ARCHITECTURE.md`; development process belongs in `docs/DEVELOPMENT.md`.
