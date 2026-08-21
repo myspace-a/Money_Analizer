@@ -129,6 +129,8 @@ It closes the adapter first (releasing the OPFS lock), deletes only the app's ow
 
 This is a **developer console utility, not a UI feature** — there is no button or menu entry for it, nothing a normal user would stumble into while using the app. That's a direct consequence of `PROJECT_SPEC.md` §4 ("the application must never silently delete or overwrite financial data"): destructive resets exist only as a deliberate, hard-to-trigger developer action, never as an in-app affordance.
 
+**Not to be confused with:** `PROJECT_SPEC.md` §3.13 defines a separate, *end-user-facing* data reset requirement — off by default, requires explicit activation plus a confirmation step, and scoped to this app's own data only. That is a real product feature (planned for Phase 7, alongside backup/restore) with its own opt-in UI, distinct from this console-only developer tool. The two will likely share the same underlying deletion logic when Phase 7 is built, but that's an implementation detail to work out at that time, not a decision made here.
+
 ### 4.7 Backup, restore, and export
 
 Since the app has no direct filesystem access outside the browser sandbox:
